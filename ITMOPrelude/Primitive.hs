@@ -140,7 +140,8 @@ natMod n = snd . natDivMod n -- Остаток
 
 -- Поиск GCD алгоритмом Евклида (должен занимать 2 (вычислителельная часть) + 1 (тип) строчки)
 gcd :: Nat -> Nat -> Nat
-gcd x y = if' (natEq x y) (x) (if' (natGt x y) (gcd (x -. y) y) (gcd (y -. x) x))
+gcd x Zero = x
+gcd x y = gcd (natMod x y) y
 
 -------------------------------------------
 -- Целые числа
