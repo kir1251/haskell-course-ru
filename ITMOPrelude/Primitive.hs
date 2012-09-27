@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module ITMOPrelude.Primitive where
 
-import Prelude (Show,Read)
+import Prelude (Show,Read, error)
 
 ---------------------------------------------
 -- Синтаксис лямбда-выражений
@@ -86,22 +86,27 @@ natOne = Succ Zero -- 1
 
 -- Сравнивает два натуральных числа
 natCmp :: Nat -> Nat -> Tri
-natCmp = undefined
+natCmp Zero Zero = EQ
+natCmp Zero _ = LT
+natCmp _ Zero = GT
+natCmp (Succ x) (Succ y) = natCmp x y
 
 -- n совпадает с m 
 natEq :: Nat -> Nat -> Bool
-natEq Zero     Zero     = True
-natEq Zero     (Succ _) = False
-natEq (Succ _) Zero     = False
-natEq (Succ n) (Succ m) = natEq n m
+natEq x y = case natCmp x y of
+	EQ -> True
+	_ -> False
 
 -- n меньше m
 natLt :: Nat -> Nat -> Bool
-natLt Zero     Zero     = False
-natLt Zero     (Succ m) = True
-natLt (Succ n) Zero     = False
-natLt (Succ n) (Succ m) = natLt n m
-
+natLt x y = case natCmp x y of
+	LT -> True
+	_ -> False
+	
+natGt x y = case natCmp x y of
+	GT -> True
+	_ -> False
+	
 infixl 6 +.
 -- Сложение для натуральных чисел
 (+.) :: Nat -> Nat -> Nat
@@ -111,7 +116,9 @@ Zero     +. m = m
 infixl 6 -.
 -- Вычитание для натуральных чисел
 (-.) :: Nat -> Nat -> Nat
-n -. m = undefined
+x -. Zero = x
+Zero -. _ = error "Value is not Natural." --Of course, Zero is not Natural too, but I'm doing as you say.
+(Succ x) -. (Succ y) = (x -. y)
 
 infixl 7 *.
 -- Умножение для натуральных чисел
@@ -121,50 +128,78 @@ Zero     *. m = Zero
 
 -- Целое и остаток от деления n на m
 natDivMod :: Nat -> Nat -> Pair Nat Nat
-natDivMod n m = undefined
+natDivMod n Zero = error "Division by zero."
+natDivMod n m = if' (natGt n m) (Pair ((natDiv (n -. m) m) +. natOne) (natMod (n -. m) m)) (Pair Zero n) 
 
 natDiv n = fst . natDivMod n -- Целое
 natMod n = snd . natDivMod n -- Остаток
 
 -- Поиск GCD алгоритмом Евклида (должен занимать 2 (вычислителельная часть) + 1 (тип) строчки)
 gcd :: Nat -> Nat -> Nat
-gcd = undefined
+gcd x y = if' (natGt x y) (gcd (x - y) y) (gcd (y - x) x)
 
 -------------------------------------------
 -- Целые числа
 
 -- Требуется, чтобы представление каждого числа было единственным
-data Int = UNDEFINED deriving (Show,Read)
+data Int = Positive Nat | Negative Nat deriving (Show,Read)
 
-intZero   = undefined   -- 0
-intOne    = undefined     -- 1
-intNegOne = undefined -- -1
+intZero   = Positive natZero -- 0
+intOne    = Positive natOne     -- 1
+intNegOne = Negative natZero -- -1
 
 -- n -> - n
 intNeg :: Int -> Int
-intNeg = undefined
+intNeg (Positive x) = Negative x
+intNeg (Negative x) = Positive x
 
 -- Дальше также как для натуральных
 intCmp :: Int -> Int -> Tri
-intCmp = undefined
+intCmp (Positive x) (Negative y) = GT
+intCmp (Negative x) (Positive y) = LT
+intCmp (Positive Zero) (Positive Zero) = EQ
+intCmp (Positive Zero) (Positive _) = LT
+intCmp (Positive _) (Positive Zero) = GT
+intCmp (Positive Zero) (Negative _) = GT
+intCmp (Negative _) (Positive Zero) = LT
+intCmp (Positive (Succ x)) (Positive (Succ y)) = intCmp (Positive x) (Positive y)
+intCmp (Negative (Succ x)) (Negative (Succ y)) = intCmp (Negative x) (Negative y)
 
 intEq :: Int -> Int -> Bool
-intEq = undefined
+intEq x y = case (intCmp x y) of
+	EQ -> True
+	_ -> False
 
 intLt :: Int -> Int -> Bool
-intLt = undefined
+intLt x y = case (intCmp x y) of
+	LT -> True
+	_ -> False
+	
+intGt :: Int -> Int -> Bool
+intGt x y = case (intCmp x y) of
+	GT -> True
+	_ -> False
 
 infixl 6 .+., .-.
 -- У меня это единственный страшный терм во всём файле
 (.+.) :: Int -> Int -> Int
-n .+. m = undefined
+(Positive x) .+. (Positive y) = Positive (x +. y)
+(Negative x) .+. (Negative y) = Negative (Succ(Succ(x +. y)))
+(Positive x) .+. (Negative y) = case (natCmp x (Succ y)) of
+	EQ -> intZero
+	GT -> Positive (x -. (Succ y))
+	LT -> Negative ((Succ y) -. x)
+(Negative x) .+. (Positive y) = intNeg ((Positive x) .+. (Negative y))
+	
 
 (.-.) :: Int -> Int -> Int
 n .-. m = n .+. (intNeg m)
 
 infixl 7 .*.
 (.*.) :: Int -> Int -> Int
-n .*. m = undefined
+n .*. (Positive (Succ Zero)) = n
+n .*. (Positive (Succ m)) = n .+. (n .*. (Positive m))
+n .*. (Negative (Succ m)) = intNeg (n .+. (n .*. (Positive m)))
 
 -------------------------------------------
 -- Рациональные числа
@@ -176,11 +211,21 @@ ratNeg (Rat x y) = Rat (intNeg x) y
 
 -- У рациональных ещё есть обратные элементы
 ratInv :: Rat -> Rat
-ratInv = undefined
+ratInv (Rat (Positive Zero) y) = error "Division by zero"
+ratInv (Rat (Negative x) y) = Rat (Negative y) (x)
+ratInv (Rat (Positive x) y) = Rat (Positive y) (x)
+
+--Simplify the rational number
+ratSim :: Rat -> Rat
+ratSim (Rat (maybe Positive x) y) = Rat (x `natDiv` (gcd x y)) (y `natDiv` (gcd x y))
+
+--Check simple the number or not
+ratCS :: Rat -> Boolean
+ratCS (Rat ((maybe Positive) x) y) = if' (gcd x y `natEq` intOne) True False
 
 -- Дальше как обычно
 ratCmp :: Rat -> Rat -> Tri
-ratCmp = undefined
+ratCmp x y = if' (ratCS x ||. ratCS y) ()
 
 ratEq :: Rat -> Rat -> Bool
 ratEq = undefined
