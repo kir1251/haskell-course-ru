@@ -55,6 +55,10 @@ if' False a b = b
 
 -- Трихотомия. Замечательный тип, показывающий результат сравнения
 data Tri = LT | EQ | GT deriving (Show,Read)
+neg Tri -> Tri
+neg EQ = EQ
+neg LT = GT
+neg GT = LT
 
 -------------------------------------------
 -- Булевы значения
@@ -136,7 +140,7 @@ natMod n = snd . natDivMod n -- Остаток
 
 -- Поиск GCD алгоритмом Евклида (должен занимать 2 (вычислителельная часть) + 1 (тип) строчки)
 gcd :: Nat -> Nat -> Nat
-gcd x y = if' (natGt x y) (gcd (x - y) y) (gcd (y - x) x)
+gcd x y = if' (natEq x y) (x) (if' (natGt x y) (gcd (x -. y) y) (gcd (y -. x) x))
 
 -------------------------------------------
 -- Целые числа
@@ -187,9 +191,13 @@ infixl 6 .+., .-.
 (Negative x) .+. (Negative y) = Negative (Succ(Succ(x +. y)))
 (Positive x) .+. (Negative y) = case (natCmp x (Succ y)) of
 	EQ -> intZero
-	GT -> Positive (x -. (Succ y))
-	LT -> Negative ((Succ y) -. x)
-(Negative x) .+. (Positive y) = intNeg ((Positive x) .+. (Negative y))
+	GT -> Positive (x -. y)
+	LT -> Negative (y -. x)
+(Negative x) .+. (Positive y) = case (natCmp x (Succ y)) of
+	EQ -> intNegOne
+	LT -> Positive (x -. y)
+	GT -> Negative (y -. x)
+
 	
 
 (.-.) :: Int -> Int -> Int
@@ -217,32 +225,41 @@ ratInv (Rat (Positive x) y) = Rat (Positive y) (x)
 
 --Simplify the rational number
 ratSim :: Rat -> Rat
-ratSim (Rat (maybe Positive x) y) = Rat (x `natDiv` (gcd x y)) (y `natDiv` (gcd x y))
+ratSim (Rat (Positive x) y) = Rat (Positive (x `natDiv` (gcd x y))) (y `natDiv` (gcd x y))
+ratSim (Rat (Negative x) y) = Rat (Negative (x `natDiv` (gcd x y))) (y `natDiv` (gcd x y))
 
 --Check simple the number or not
-ratCS :: Rat -> Boolean
-ratCS (Rat ((maybe Positive) x) y) = if' (gcd x y `natEq` intOne) True False
+ratCS :: Rat -> Bool
+ratCS (Rat (Positive x) y) = if' (gcd x y `natEq` natOne) True False
 
 -- Дальше как обычно
 ratCmp :: Rat -> Rat -> Tri
-ratCmp x y = if' (ratCS x ||. ratCS y) ()
+ratCmp (Rat (Positive x1) y1) (Rat (Positive x2) y2) = NatCmp (x1 *. y2) (x2 *. y1)
+ratCmp (Rat (Negative x1) y1) (Rat (Negative x2) y2) = NatCmp (x1 *. y2) (x2 *. y1)
+ratCmp (Rat (Positive _) _) (Rat (Negative _) _) = GT
+ratCmp (Rat (Negative _) _) (Rat (Positive _) _) = LT
+
 
 ratEq :: Rat -> Rat -> Bool
-ratEq = undefined
+ratEq x y = case ratCmp x y of
+	EQ -> True
+	_ -> False
 
 ratLt :: Rat -> Rat -> Bool
-ratLt = undefined
-
+ratLt x y = case ratCmp x y of
+	LT -> True
+	_ -> False
+	
 infixl 7 %+, %-
 (%+) :: Rat -> Rat -> Rat
-n %+ m = undefined
+(Rat x1 y1) %+ (Rat x2 y2) = natSim (Rat ((x1 .*. (Positive y2)) .+. (x2 .*. (Negative y1))) (y1 *. y2))
 
 (%-) :: Rat -> Rat -> Rat
-n %- m = n %+ (ratNeg m)
+(Rat x1 y1) %+ (Rat x2 y2) = natSim (Rat ((x1 .*. (Positive y2)) .-. (x2 .*. (Negative y1))) (y1 *. y2))
 
 infixl 7 %*, %/
 (%*) :: Rat -> Rat -> Rat
-n %* m = undefined
+(Rat x1 y1) %* (Rat x2 y2) = Rat (x1 .*. x2) (y1 *. y2)
 
 (%/) :: Rat -> Rat -> Rat
 n %/ m = n %* (ratInv m)
