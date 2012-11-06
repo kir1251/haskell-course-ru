@@ -55,7 +55,7 @@ if' False a b = b
 
 -- Трихотомия. Замечательный тип, показывающий результат сравнения
 data Tri = LT | EQ | GT deriving (Show,Read)
-neg Tri -> Tri
+neg :: Tri -> Tri
 neg EQ = EQ
 neg LT = GT
 neg GT = LT
@@ -235,8 +235,8 @@ ratCS (Rat (Positive x) y) = if' (gcd x y `natEq` natOne) True False
 
 -- Дальше как обычно
 ratCmp :: Rat -> Rat -> Tri
-ratCmp (Rat (Positive x1) y1) (Rat (Positive x2) y2) = NatCmp (x1 *. y2) (x2 *. y1)
-ratCmp (Rat (Negative x1) y1) (Rat (Negative x2) y2) = NatCmp (x1 *. y2) (x2 *. y1)
+ratCmp (Rat (Positive x1) y1) (Rat (Positive x2) y2) = natCmp (x1 *. y2) (x2 *. y1)
+ratCmp (Rat (Negative x1) y1) (Rat (Negative x2) y2) = natCmp (x1 *. y2) (x2 *. y1)
 ratCmp (Rat (Positive _) _) (Rat (Negative _) _) = GT
 ratCmp (Rat (Negative _) _) (Rat (Positive _) _) = LT
 
@@ -253,10 +253,10 @@ ratLt x y = case ratCmp x y of
 	
 infixl 7 %+, %-
 (%+) :: Rat -> Rat -> Rat
-(Rat x1 y1) %+ (Rat x2 y2) = natSim (Rat ((x1 .*. (Positive y2)) .+. (x2 .*. (Negative y1))) (y1 *. y2))
+(Rat x1 y1) %+ (Rat x2 y2) = ratSim (Rat ((x1 .*. (Positive y2)) .+. (x2 .*. (Positive y1))) (y1 *. y2))
 
 (%-) :: Rat -> Rat -> Rat
-(Rat x1 y1) %+ (Rat x2 y2) = natSim (Rat ((x1 .*. (Positive y2)) .-. (x2 .*. (Negative y1))) (y1 *. y2))
+(Rat x1 y1) %- (Rat x2 y2) = ratSim (Rat ((x1 .*. (Positive y2)) .-. (x2 .*. (Positive y1))) (y1 *. y2))
 
 infixl 7 %*, %/
 (%*) :: Rat -> Rat -> Rat

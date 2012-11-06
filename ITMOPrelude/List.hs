@@ -103,17 +103,18 @@ span f (Cons x a) = if' (f x) (Pair (Cons x (fst (span f a))) (snd (span f a))) 
 -- Разбить список по предикату на (takeWhile (not . p) xs, dropWhile (not . p) xs),
 -- но эффективнее
 break :: (a -> Bool) -> List a -> Pair (List a) (List a)
-break f a = span (fNot f) a
+break f a = span (not . f) a
 
 -- n-ый элемент списка (считая с нуля)
 (!!) :: List a -> Nat -> a
 Nil !! n = error "!!: empty list"
-Cons a l !! n = l !! (n -. natOne)
+Cons a l !! natZero = a
+Cons a l !! Succ n = l !! n
 
 -- Список задом на перёд
 reverse :: List a -> List a
 reverse Nil = Nil
-reverse l = Cons (last l) (init l)
+reverse l = Cons (last l) $ reverse (init l)
 
 -- (*) Все подсписки данного списка
 subsequences :: List a -> List (List a)
@@ -131,7 +132,7 @@ permutations' = undefined
 
 -- Повторяет элемент бесконечное число раз
 repeat :: a -> List a
-repeat = (Cons a (repeat a))
+repeat a = (Cons a (repeat a))
 
 -- Левая свёртка
 -- порождает такое дерево вычислений:
@@ -145,14 +146,14 @@ repeat = (Cons a (repeat a))
 --  / \
 -- z  l!!0
 foldl :: (a -> b -> a) -> a -> List b -> a
-foldl _ z _ = z
+foldl _ z Nil = z
 foldl f z (Cons x l) = foldl f (f z x) l
 
 -- Тот же foldl, но в списке оказываются все промежуточные результаты
 -- last (scanl f z xs) == foldl f z xs
 scanl :: (a -> b -> a) -> a -> List b -> List a
-scan _ z _ = Cons z Nil
-scanl f z (Cons x l) = Cons (f z x) (foldl f (f z x) l)
+scanl _ z Nil = Cons z Nil
+scanl f z (Cons x l) = Cons (f z x) (scanl f (f z x) l)
 
 -- Правая свёртка
 -- порождает такое дерево вычислений:
@@ -167,32 +168,41 @@ scanl f z (Cons x l) = Cons (f z x) (foldl f (f z x) l)
 --            z
 --            
 foldr :: (a -> b -> b) -> b -> List a -> b
+foldr _ z Nil = z
 foldr f z (Cons x l) = f x (foldr f z l)
 
 -- Аналогично
 --  head (scanr f z xs) == foldr f z xs.
 scanr :: (a -> b -> b) -> b -> List a -> List b
-scanr = Cons (f z x) $ f x (foldr f z l)
+scanr _ z Nil = Cons z Nil
+scanr f z (Cons x l) = Cons (f x (foldr f z l)) (scanr f z l)
 
 -- Должно завершаться за конечное время
 finiteTimeTest = take (Succ $ Succ $ Succ $ Succ Zero) $ foldr (Cons) Nil $ repeat Zero
 
 -- Применяет f к каждому элементу списка
 map :: (a -> b) -> List a -> List b
+map f Nil = Nil
 map f (Cons x l) = Cons (f x) $ map f l
 
 -- Склеивает список списков в список
 concat :: List (List a) -> List a
-concat = 
+concat Nil = Nil
+concat (Cons a b) = a ++ concat b
 
 -- Эквивалент (concat . map), но эффективнее
 concatMap :: (a -> List b) -> List a -> List b
-concatMap = undefined
+concatMap f Nil = Nil
+concatMap f (Cons a b) = f a ++ concatMap f b
 
 -- Сплющить два списка в список пар длинны min (length a, length b)
 zip :: List a -> List b -> List (Pair a b)
-zip a b = undefined
+zip (Cons _ _) Nil = Nil
+zip Nil (Cons _ _) = Nil
+zip (Cons t1 a) (Cons t2 b) = Cons (Pair t1 t2) (zip a b)
 
 -- Аналогично, но плющить при помощи функции, а не конструктором Pair
 zipWith :: (a -> b -> c) -> List a -> List b -> List c
-zipWith = undefined
+zipWith f (Cons _ _) Nil = Nil
+zipWith f Nil (Cons _ _) = Nil
+zipWith f (Cons t1 a) (Cons t2 b) = Cons (f t1 t2) (zipWith f a b)
